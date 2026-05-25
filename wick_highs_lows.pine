@@ -1,9 +1,17 @@
 //@version=5
 indicator("Wick Highs & Lows", overlay=true)
 
-// ─── Candle color ──────────────────────────────────────────────
-isRed   = close < open
-isGreen = close > open
+// ─── Inputs ────────────────────────────────────────────────────
+minBodyPct = input.float(0.0, "Min body size (% of bar range)", minval=0.0, maxval=100.0,
+     tooltip="Ignore near-doji candles. 0 = accept any body. Try 20–30 to filter weak reversals.")
+
+// ─── Candle color (with body-size filter) ──────────────────────
+barRange = high - low
+bodyPct  = barRange > 0 ? math.abs(close - open) / barRange * 100 : 0
+bigEnough = bodyPct >= minBodyPct
+
+isRed   = close < open and bigEnough
+isGreen = close > open and bigEnough
 
 // ─── LOW: red bar followed by green bar ────────────────────────
 // pick whichever of the two candles has the lower wick (lowest low)
