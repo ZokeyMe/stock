@@ -1,0 +1,39 @@
+//@version=5
+indicator("Wick Highs & Lows", overlay=true)
+
+// ─── Candle color ──────────────────────────────────────────────
+isRed   = close < open
+isGreen = close > open
+
+// ─── LOW: red bar followed by green bar ────────────────────────
+// pick whichever of the two candles has the lower wick (lowest low)
+lowSignal = isRed[1] and isGreen
+swingLow  = lowSignal ? math.min(low[1], low) : na
+lowBar    = lowSignal ? (low[1] <= low ? bar_index - 1 : bar_index) : na
+
+// ─── HIGH: green bar followed by red bar ───────────────────────
+// pick whichever of the two candles has the higher wick (highest high)
+highSignal = isGreen[1] and isRed
+swingHigh  = highSignal ? math.max(high[1], high) : na
+highBar    = highSignal ? (high[1] >= high ? bar_index - 1 : bar_index) : na
+
+// ─── Draw markers ──────────────────────────────────────────────
+if lowSignal
+    label.new(lowBar, swingLow, "L",
+         yloc=yloc.price,
+         color=color.new(color.green, 0),
+         textcolor=color.white,
+         style=label.style_label_up,
+         size=size.small)
+
+if highSignal
+    label.new(highBar, swingHigh, "H",
+         yloc=yloc.price,
+         color=color.new(color.red, 0),
+         textcolor=color.white,
+         style=label.style_label_down,
+         size=size.small)
+
+// ─── Alerts ────────────────────────────────────────────────────
+alertcondition(lowSignal,  title="New Low",  message="Red→Green reversal: new swing low")
+alertcondition(highSignal, title="New High", message="Green→Red reversal: new swing high")
