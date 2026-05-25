@@ -1,0 +1,69 @@
+//@version=4
+//@AGFX
+study("AG FX - Pivot Points (Lines)", overlay=true)
+
+//Inputs
+int offset = 2
+bar_index_ = bar_index[offset]
+showPivotLines  = input(true, title="Show Pivot Lines", group="Pivot Lines")
+leftBars        = input(2, 'Left Bars',  group='Pivot Settings')
+rightBars       = input(2, 'Right Bars', group='Pivot Settings')
+pivotHighColor  = input(defval=#978383, title="Pivot High Line", type=input.color, group="Pivot Line Customization")
+pivotLowColor   = input(defval=#7d8c9c, title="Pivot Low Line",  type=input.color, group="Pivot Line Customization")
+lineWidth       = input(defval=2, title="Line Width", type=input.integer, minval=1, maxval=5, group="Pivot Line Customization")
+lineStyleInput  = input(defval="Solid", title="Line Style", options=["Solid","Dashed","Dotted"], group="Pivot Line Customization")
+addLineCount    = input(defval=100, title="Maximum Lines Displayed", type=input.integer, minval=1, maxval=200, group="Chart Customization")
+
+lineStyle = lineStyleInput == "Solid"  ? line.style_solid  :
+             lineStyleInput == "Dashed" ? line.style_dashed :
+             line.style_dotted
+
+//Pivot definition
+pivotLow  = pivotlow(low, leftBars, rightBars)
+pivotHigh = pivothigh(high, leftBars, rightBars)
+
+//Line arrays
+var line[] pivotHighLineArray = array.new_line()
+var line[] pivotLowLineArray  = array.new_line()
+
+//Extend high pivot lines until price touches them
+f_extendHighLines(pivotHighLineArray) =>
+    if (array.size(pivotHighLineArray) > 0)
+        for i = array.size(pivotHighLineArray) - 1 to 0
+            curLine   = array.get(pivotHighLineArray, i)
+            lineLevel = line.get_y1(curLine)
+            lineRight = line.get_x2(curLine)
+            if (bar_index - 1 == lineRight and high < lineLevel)
+                line.set_x2(curLine, bar_index)
+
+//Pivot High Line Plotting
+if (pivotHigh and showPivotLines)
+    pivotLevel = high[2]
+    newHighLine = line.new(bar_index_, pivotLevel, bar_index, pivotLevel,
+         color=pivotHighColor, width=lineWidth, style=lineStyle)
+    if (array.size(pivotHighLineArray) > addLineCount)
+        line.delete(array.shift(pivotHighLineArray))
+    array.push(pivotHighLineArray, newHighLine)
+
+f_extendHighLines(pivotHighLineArray)
+
+//Extend low pivot lines until price touches them
+f_extendLowLines(pivotLowLineArray) =>
+    if (array.size(pivotLowLineArray) > 0)
+        for i = array.size(pivotLowLineArray) - 1 to 0
+            curLine   = array.get(pivotLowLineArray, i)
+            lineLevel = line.get_y1(curLine)
+            lineRight = line.get_x2(curLine)
+            if (bar_index - 1 == lineRight and low > lineLevel)
+                line.set_x2(curLine, bar_index)
+
+//Pivot Low Line Plotting
+if (pivotLow and showPivotLines)
+    pivotLevel = low[2]
+    newLowLine = line.new(bar_index_, pivotLevel, bar_index, pivotLevel,
+         color=pivotLowColor, width=lineWidth, style=lineStyle)
+    if (array.size(pivotLowLineArray) > addLineCount)
+        line.delete(array.shift(pivotLowLineArray))
+    array.push(pivotLowLineArray, newLowLine)
+
+f_extendLowLines(pivotLowLineArray)
