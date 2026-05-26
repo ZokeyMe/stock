@@ -1,0 +1,21 @@
+//@version=5
+indicator("Average True Volume", shorttitle="ATV", overlay=false, format=format.volume)
+
+// ─── Inputs (mirroring built-in ATR) ───────────────────────────
+length    = input.int(14, "Length", minval=1)
+smoothing = input.string("RMA", "Smoothing", options=["RMA", "SMA", "EMA", "WMA"])
+
+ma(source, len, type) =>
+    switch type
+        "RMA" => ta.rma(source, len)
+        "SMA" => ta.sma(source, len)
+        "EMA" => ta.ema(source, len)
+        "WMA" => ta.wma(source, len)
+
+// ─── Average True Volume ───────────────────────────────────────
+atv = ma(volume, length, smoothing)
+
+// ─── Plot ──────────────────────────────────────────────────────
+volColor = close >= open ? color.new(color.teal, 60) : color.new(color.red, 60)
+plot(volume, "Volume", color=volColor, style=plot.style_columns)
+plot(atv,    "ATV",    color=color.orange, linewidth=2)
