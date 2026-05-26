@@ -2,8 +2,8 @@
 indicator("Market Structure Break", shorttitle="MSB", overlay=true, max_lines_count=500, max_labels_count=500)
 
 // ─── Inputs ────────────────────────────────────────────────────
-leftBars   = input.int(5, "Pivot Left Bars",  minval=1, group="Swing Detection")
-rightBars  = input.int(5, "Pivot Right Bars", minval=1, group="Swing Detection")
+leftBars   = input.int(3, "Pivot Left Bars",  minval=1, group="Swing Detection")
+rightBars  = input.int(3, "Pivot Right Bars", minval=1, group="Swing Detection")
 useClose   = input.bool(true, "Confirm break with close (vs wick)", group="Break Confirmation")
 
 bullCol    = input.color(color.lime,   "Bullish BOS color", group="Style")
@@ -11,6 +11,7 @@ bearCol    = input.color(color.red,    "Bearish BOS color", group="Style")
 chochCol   = input.color(color.orange, "CHoCH color",       group="Style")
 lineW      = input.int(1, "Line Width", minval=1, maxval=4, group="Style")
 showLabels = input.bool(true, "Show labels", group="Style")
+showPivots = input.bool(true, "Show swing markers (debug)", group="Style")
 
 // ─── Detect swings (confirmed rightBars after the pivot) ───────
 ph = ta.pivothigh(high, leftBars, rightBars)
@@ -78,6 +79,14 @@ if bearBOS or bearCHoCH
         label.new(bar_index, swingLow, txt,
              color=col, textcolor=color.white,
              style=label.style_label_up, size=size.small)
+
+// ─── Swing markers (so you can see it's working) ───────────────
+plotshape(showPivots ? ph : na, "Pivot High",
+     style=shape.triangledown, location=location.abovebar,
+     color=color.new(color.gray, 30), size=size.tiny, offset=-rightBars)
+plotshape(showPivots ? pl : na, "Pivot Low",
+     style=shape.triangleup,   location=location.belowbar,
+     color=color.new(color.gray, 30), size=size.tiny, offset=-rightBars)
 
 // ─── Alerts ────────────────────────────────────────────────────
 alertcondition(bullBOS,   "Bullish BOS",   "Bullish break of structure")
