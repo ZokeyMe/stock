@@ -3,7 +3,7 @@ strategy("Market Structure Break", shorttitle="MSB", overlay=true,
      max_lines_count=500, max_labels_count=500, max_boxes_count=500,
      initial_capital=10000, default_qty_type=strategy.fixed, default_qty_value=1,
      commission_type=strategy.commission.percent, commission_value=0,
-     pyramiding=0, calc_on_every_tick=false, process_orders_on_close=false)
+     pyramiding=20, calc_on_every_tick=false, process_orders_on_close=false)
 
 // ─── Detection ─────────────────────────────────────────────────
 leftBars   = input.int(3, "Pivot Left Bars",  minval=1)
@@ -51,6 +51,13 @@ atrMidStop    = input.float(25.0, "Mid SL points (between thresholds)", group="P
 tpCol         = input.color(color.new(color.green, 75), "Take Profit Fill", group="Position Box")
 slCol         = input.color(color.new(color.red,   75), "Stop Loss Fill",   group="Position Box")
 entryLineCol  = input.color(color.gray, "Entry Line Color", group="Position Box")
+
+// ─── Risk Sizing ───────────────────────────────────────────────
+useRiskSizing = input.bool(true,  "Auto position sizing by risk %", group="Risk Sizing")
+riskPct       = input.float(5.0,  "Initial Risk %",        minval=0.1, maxval=100.0, step=0.1, group="Risk Sizing")
+addThreshold  = input.float(3.0,  "Add contract when risk drops below %", minval=0.1, maxval=100.0, step=0.1, group="Risk Sizing")
+maxRiskPct    = input.float(5.0,  "Max total risk %",      minval=0.1, maxval=100.0, step=0.1, group="Risk Sizing")
+pointValueOvr = input.float(0.0,  "Override Point Value (0 = use symbol)", minval=0.0, group="Risk Sizing")
 
 // ─── Stats Table ───────────────────────────────────────────────
 showStats     = input.bool(true, "Show Stats Table", group="Stats")
@@ -227,24 +234,66 @@ if drawShort
 
 // Strategy trades (entries fill on next bar's open by default)
 var float entryStopDist = na
+var float origEntry     = na
 
+// Capture / clear original entry on position transitions
+positionJustOpened = strategy.position_size != 0 and strategy.position_size[1] == 0
+positionJustClosed = strategy.position_size == 0 and strategy.position_size[1] != 0
+
+if positionJustOpened
+    origEntry := strategy.position_avg_price
+if positionJustClosed
+    origEntry     := na
+    entryStopDist := na
+
+// Point value (override or symbol-supplied)
+ptVal = pointValueOvr > 0 ? pointValueOvr : syminfo.pointvalue
+
+// Per-contract risk in $
+perContractRisk(stopDistance) =>
+    stopDistance * ptVal
+
+// Initial qty so that qty * stopDist * ptVal ≈ riskPct% of equity
+initialQty(stopDistance) =>
+    riskDollars = riskPct / 100.0 * strategy.equity
+    perRisk     = perContractRisk(stopDistance)
+    q           = perRisk > 0 ? math.floor(riskDollars / perRisk) : 1
+    math.max(q, 1)
+
+// Initial entries
 if runBacktest and validBullEntry
-    strategy.entry("Long", strategy.long)
+    q = useRiskSizing ? initialQty(stopDist) : 1
+    strategy.entry("Long", strategy.long, qty=q)
     entryStopDist := stopDist
 
 if runBacktest and validBearEntry
-    strategy.entry("Short", strategy.short)
+    q = useRiskSizing ? initialQty(stopDist) : 1
+    strategy.entry("Short", strategy.short, qty=q)
     entryStopDist := stopDist
 
-if strategy.position_size > 0 and not na(entryStopDist)
-    strategy.exit("Long Exit", from_entry="Long",
-         stop=strategy.position_avg_price - entryStopDist,
-         limit=strategy.position_avg_price + entryStopDist * boxRR)
+// Pyramid: add 1 contract when current risk % drops below threshold, capped by max %
+if runBacktest and useRiskSizing and strategy.position_size != 0 and not na(entryStopDist) and strategy.equity > 0
+    curQty     = math.abs(strategy.position_size)
+    curRisk    = curQty * perContractRisk(entryStopDist)
+    curRiskPct = curRisk / strategy.equity * 100.0
+    if curRiskPct < addThreshold
+        newRiskPct = (curQty + 1) * perContractRisk(entryStopDist) / strategy.equity * 100.0
+        if newRiskPct <= maxRiskPct
+            if strategy.position_size > 0
+                strategy.entry("Long",  strategy.long,  qty=1)
+            else
+                strategy.entry("Short", strategy.short, qty=1)
 
-if strategy.position_size < 0 and not na(entryStopDist)
+// Exit using the ORIGINAL entry's SL/TP (does not move as we pyramid)
+if strategy.position_size > 0 and not na(entryStopDist) and not na(origEntry)
+    strategy.exit("Long Exit", from_entry="Long",
+         stop=origEntry - entryStopDist,
+         limit=origEntry + entryStopDist * boxRR)
+
+if strategy.position_size < 0 and not na(entryStopDist) and not na(origEntry)
     strategy.exit("Short Exit", from_entry="Short",
-         stop=strategy.position_avg_price + entryStopDist,
-         limit=strategy.position_avg_price - entryStopDist * boxRR)
+         stop=origEntry + entryStopDist,
+         limit=origEntry - entryStopDist * boxRR)
 
 // ─── Zigzag ────────────────────────────────────────────────────
 var int   zzLastBar    = na
