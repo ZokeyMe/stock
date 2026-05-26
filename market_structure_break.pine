@@ -1,0 +1,86 @@
+//@version=5
+indicator("Market Structure Break", shorttitle="MSB", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ─── Inputs ────────────────────────────────────────────────────
+leftBars   = input.int(5, "Pivot Left Bars",  minval=1, group="Swing Detection")
+rightBars  = input.int(5, "Pivot Right Bars", minval=1, group="Swing Detection")
+useClose   = input.bool(true, "Confirm break with close (vs wick)", group="Break Confirmation")
+
+bullCol    = input.color(color.lime,   "Bullish BOS color", group="Style")
+bearCol    = input.color(color.red,    "Bearish BOS color", group="Style")
+chochCol   = input.color(color.orange, "CHoCH color",       group="Style")
+lineW      = input.int(1, "Line Width", minval=1, maxval=4, group="Style")
+showLabels = input.bool(true, "Show labels", group="Style")
+
+// ─── Detect swings (confirmed rightBars after the pivot) ───────
+ph = ta.pivothigh(high, leftBars, rightBars)
+pl = ta.pivotlow(low,  leftBars, rightBars)
+
+var float swingHigh    = na
+var int   swingHighBar = na
+var float swingLow     = na
+var int   swingLowBar  = na
+
+if not na(ph)
+    swingHigh    := ph
+    swingHighBar := bar_index - rightBars
+
+if not na(pl)
+    swingLow    := pl
+    swingLowBar := bar_index - rightBars
+
+// ─── Break detection ───────────────────────────────────────────
+upPx = useClose ? close : high
+dnPx = useClose ? close : low
+
+var float lastBrokenHigh = na
+var float lastBrokenLow  = na
+var int   bias = 0  // 1 = bullish, -1 = bearish, 0 = unset
+
+bullBOS   = false
+bullCHoCH = false
+bearBOS   = false
+bearCHoCH = false
+
+if not na(swingHigh) and upPx > swingHigh and swingHigh != lastBrokenHigh
+    if bias == 1
+        bullBOS := true
+    else
+        bullCHoCH := true
+    lastBrokenHigh := swingHigh
+    bias := 1
+
+if not na(swingLow) and dnPx < swingLow and swingLow != lastBrokenLow
+    if bias == -1
+        bearBOS := true
+    else
+        bearCHoCH := true
+    lastBrokenLow := swingLow
+    bias := -1
+
+// ─── Draw ──────────────────────────────────────────────────────
+if bullBOS or bullCHoCH
+    col = bullCHoCH ? chochCol : bullCol
+    txt = bullCHoCH ? "CHoCH" : "BOS"
+    line.new(swingHighBar, swingHigh, bar_index, swingHigh,
+         color=col, style=line.style_dashed, width=lineW)
+    if showLabels
+        label.new(bar_index, swingHigh, txt,
+             color=col, textcolor=color.white,
+             style=label.style_label_down, size=size.small)
+
+if bearBOS or bearCHoCH
+    col = bearCHoCH ? chochCol : bearCol
+    txt = bearCHoCH ? "CHoCH" : "BOS"
+    line.new(swingLowBar, swingLow, bar_index, swingLow,
+         color=col, style=line.style_dashed, width=lineW)
+    if showLabels
+        label.new(bar_index, swingLow, txt,
+             color=col, textcolor=color.white,
+             style=label.style_label_up, size=size.small)
+
+// ─── Alerts ────────────────────────────────────────────────────
+alertcondition(bullBOS,   "Bullish BOS",   "Bullish break of structure")
+alertcondition(bearBOS,   "Bearish BOS",   "Bearish break of structure")
+alertcondition(bullCHoCH, "Bullish CHoCH", "Change of character: trend turning bullish")
+alertcondition(bearCHoCH, "Bearish CHoCH", "Change of character: trend turning bearish")
