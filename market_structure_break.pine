@@ -59,6 +59,21 @@ tablePos      = input.string("top_right", "Table Position",
 tableTextCol  = input.color(color.white, "Text Color", group="Stats")
 tableBgCol    = input.color(color.new(color.black, 30), "Background", group="Stats")
 
+// ─── Trading Hours ─────────────────────────────────────────────
+session1On = input.bool(false,        "Session 1",    group="Trading Hours", inline="s1")
+session1Tm = input.session("0930-1100", "",           group="Trading Hours", inline="s1")
+session2On = input.bool(false,        "Session 2",    group="Trading Hours", inline="s2")
+session2Tm = input.session("1400-1530", "",           group="Trading Hours", inline="s2")
+shadeSess  = input.bool(true,  "Shade active sessions on chart", group="Trading Hours")
+sessShadeCol = input.color(color.new(color.blue, 92), "Session Shade Color", group="Trading Hours")
+
+inSession1   = session1On and not na(time(timeframe.period, session1Tm))
+inSession2   = session2On and not na(time(timeframe.period, session2Tm))
+anySessionOn = session1On or session2On
+canTrade     = not anySessionOn or inSession1 or inSession2
+
+bgcolor(shadeSess and (inSession1 or inSession2) ? sessShadeCol : na, title="Session Shade")
+
 // ─── Swing detection ───────────────────────────────────────────
 ph = ta.pivothigh(high, leftBars, rightBars)
 pl = ta.pivotlow(low,  leftBars, rightBars)
@@ -208,11 +223,11 @@ if drawShort
 // Strategy trades (entries fill on next bar's open by default)
 var float entryStopDist = na
 
-if runBacktest and bullDispEvent
+if runBacktest and canTrade and bullDispEvent
     strategy.entry("Long", strategy.long)
     entryStopDist := stopDist
 
-if runBacktest and bearDispEvent
+if runBacktest and canTrade and bearDispEvent
     strategy.entry("Short", strategy.short)
     entryStopDist := stopDist
 
