@@ -57,7 +57,7 @@ useRiskSizing = input.bool(true,  "Auto position sizing by risk %", group="Risk 
 riskPct       = input.float(5.0,  "Initial Risk %",        minval=0.1, maxval=100.0, step=0.1, group="Risk Sizing")
 addThreshold  = input.float(3.0,  "Add contract when risk drops below %", minval=0.1, maxval=100.0, step=0.1, group="Risk Sizing")
 maxRiskPct    = input.float(5.0,  "Max total risk %",      minval=0.1, maxval=100.0, step=0.1, group="Risk Sizing")
-pointValueOvr = input.float(0.0,  "Override Point Value (0 = use symbol)", minval=0.0, group="Risk Sizing")
+pointValueOvr = input.float(50.0, "Point Value ($ per point per contract, 0 = use symbol)", minval=0.0, group="Risk Sizing")
 
 // ─── Stats Table ───────────────────────────────────────────────
 showStats     = input.bool(true, "Show Stats Table", group="Stats")
