@@ -25,9 +25,12 @@ zigzagCol  = input.color(color.yellow, "Zigzag Color", group="Zigzag")
 zigzagW    = input.int(1, "Zigzag Width", minval=1, maxval=5, group="Zigzag")
 
 // ─── Displacement Candle ───────────────────────────────────────
-dispEnabled   = input.bool(true,  "Tag BOS/CHoCH on Displacement",  group="Displacement")
-dispThreshold = input.float(20.0, "Counter-Wick Max %", minval=1.0, maxval=50.0, step=1.0, group="Displacement")
-dispMarkerCol = input.color(color.yellow, "Displacement Marker Color", group="Displacement")
+dispEnabled    = input.bool(true,  "Tag BOS/CHoCH on Displacement",  group="Displacement")
+dispThreshold  = input.float(20.0, "Counter-Wick Max %", minval=1.0, maxval=50.0, step=1.0, group="Displacement")
+useBodyFilter  = input.bool(false, "Require larger-than-average body", group="Displacement")
+bodyMultiplier = input.float(1.5,  "Body Size Multiplier",  minval=1.0, maxval=5.0, step=0.1, group="Displacement")
+bodyLookback   = input.int(5,      "Body Avg Lookback (bars)", minval=2, maxval=50, group="Displacement")
+dispMarkerCol  = input.color(color.yellow, "Displacement Marker Color", group="Displacement")
 
 // ─── Swing detection ───────────────────────────────────────────
 ph = ta.pivothigh(high, leftBars, rightBars)
@@ -62,8 +65,12 @@ totalDown = open - low
 topWick   = high - close
 botWick   = close - low
 
-isBullDisp = close > open and totalUp   > 0 and (topWick / totalUp)   * 100 < dispThreshold
-isBearDisp = close < open and totalDown > 0 and (botWick / totalDown) * 100 < dispThreshold
+body    = math.abs(close - open)
+avgBody = ta.sma(body, bodyLookback)[1]
+bigBody = not useBodyFilter or (not na(avgBody) and body > avgBody * bodyMultiplier)
+
+isBullDisp = close > open and totalUp   > 0 and (topWick / totalUp)   * 100 < dispThreshold and bigBody
+isBearDisp = close < open and totalDown > 0 and (botWick / totalDown) * 100 < dispThreshold and bigBody
 
 // ─── Break detection ───────────────────────────────────────────
 upPx = useClose ? close : high
