@@ -1,5 +1,5 @@
 //@version=5
-indicator("Market Structure Break", shorttitle="MSB", overlay=true, max_lines_count=500, max_labels_count=500)
+indicator("Market Structure Break", shorttitle="MSB", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
 
 // ─── Detection ─────────────────────────────────────────────────
 leftBars   = input.int(3, "Pivot Left Bars",  minval=1)
@@ -31,6 +31,21 @@ useBodyFilter  = input.bool(false, "Require larger-than-average body", group="Di
 bodyMultiplier = input.float(1.5,  "Body Size Multiplier",  minval=1.0, maxval=5.0, step=0.1, group="Displacement")
 bodyLookback   = input.int(5,      "Body Avg Lookback (bars)", minval=2, maxval=50, group="Displacement")
 dispMarkerCol  = input.color(color.yellow, "Displacement Marker Color", group="Displacement")
+
+// ─── Position Box ──────────────────────────────────────────────
+showPositions = input.bool(true,  "Show Position Boxes",            group="Position Box")
+useNextOpen   = input.bool(true,  "Enter at next bar's open",       group="Position Box")
+atrLength     = input.int(14,     "ATR Length", minval=1,           group="Position Box")
+boxRR         = input.float(1.5,  "Risk:Reward",   minval=0.1, maxval=10.0, step=0.1, group="Position Box")
+boxLength     = input.int(15,     "Box Length (bars)", minval=1, maxval=500, group="Position Box")
+atrHighThresh = input.float(20.0, "ATR High Threshold",  group="Position Box", inline="hi")
+atrHighStop   = input.float(50.0, " → SL points",        group="Position Box", inline="hi")
+atrLowThresh  = input.float(7.0,  "ATR Low Threshold",   group="Position Box", inline="lo")
+atrLowStop    = input.float(16.5, " → SL points",        group="Position Box", inline="lo")
+atrMidStop    = input.float(25.0, "Mid SL points (between thresholds)", group="Position Box")
+tpCol         = input.color(color.new(color.green, 75), "Take Profit Fill", group="Position Box")
+slCol         = input.color(color.new(color.red,   75), "Stop Loss Fill",   group="Position Box")
+entryLineCol  = input.color(color.gray, "Entry Line Color", group="Position Box")
 
 // ─── Swing detection ───────────────────────────────────────────
 ph = ta.pivothigh(high, leftBars, rightBars)
@@ -133,6 +148,50 @@ plotshape(dispEnabled and (bullBOS or bullCHoCH) and isBullDisp ? high : na,
 plotshape(dispEnabled and (bearBOS or bearCHoCH) and isBearDisp ? low : na,
      title="Bearish Break Displacement",
      style=shape.diamond, location=location.belowbar, color=dispMarkerCol, size=size.tiny)
+
+// ─── Position Box ──────────────────────────────────────────────
+atrVal = ta.atr(atrLength)
+stopDist = atrVal >= atrHighThresh ? atrHighStop : atrVal >= atrLowThresh ? atrMidStop : atrLowStop
+
+bullDispEvent = (bullBOS or bullCHoCH) and isBullDisp
+bearDispEvent = (bearBOS or bearCHoCH) and isBearDisp
+
+drawLong  = showPositions and (useNextOpen ? bullDispEvent[1] : bullDispEvent)
+drawShort = showPositions and (useNextOpen ? bearDispEvent[1] : bearDispEvent)
+
+if drawLong
+    entry = useNextOpen ? open : close
+    sl    = entry - stopDist
+    tp    = entry + stopDist * boxRR
+    box.new(bar_index, tp, bar_index + boxLength, entry,
+         bgcolor=tpCol, border_color=color.new(color.green, 50),
+         text="TP " + str.tostring(tp, format.mintick),
+         text_color=color.white, text_size=size.tiny,
+         text_halign=text.align_right, text_valign=text.align_center)
+    box.new(bar_index, entry, bar_index + boxLength, sl,
+         bgcolor=slCol, border_color=color.new(color.red, 50),
+         text="SL " + str.tostring(sl, format.mintick),
+         text_color=color.white, text_size=size.tiny,
+         text_halign=text.align_right, text_valign=text.align_center)
+    line.new(bar_index, entry, bar_index + boxLength, entry,
+         color=entryLineCol, width=1)
+
+if drawShort
+    entry = useNextOpen ? open : close
+    sl    = entry + stopDist
+    tp    = entry - stopDist * boxRR
+    box.new(bar_index, entry, bar_index + boxLength, tp,
+         bgcolor=tpCol, border_color=color.new(color.green, 50),
+         text="TP " + str.tostring(tp, format.mintick),
+         text_color=color.white, text_size=size.tiny,
+         text_halign=text.align_right, text_valign=text.align_center)
+    box.new(bar_index, sl, bar_index + boxLength, entry,
+         bgcolor=slCol, border_color=color.new(color.red, 50),
+         text="SL " + str.tostring(sl, format.mintick),
+         text_color=color.white, text_size=size.tiny,
+         text_halign=text.align_right, text_valign=text.align_center)
+    line.new(bar_index, entry, bar_index + boxLength, entry,
+         color=entryLineCol, width=1)
 
 // ─── Zigzag ────────────────────────────────────────────────────
 var int   zzLastBar    = na
