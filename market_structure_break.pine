@@ -182,9 +182,14 @@ stopDist = atrVal >= atrHighThresh ? atrHighStop : atrVal >= atrLowThresh ? atrM
 bullDispEvent = (bullBOS or bullCHoCH) and isBullDisp
 bearDispEvent = (bearBOS or bearCHoCH) and isBearDisp
 
-// Visual boxes
-drawLong  = showPositions and (useNextOpen ? bullDispEvent[1] : bullDispEvent)
-drawShort = showPositions and (useNextOpen ? bearDispEvent[1] : bearDispEvent)
+// A signal is only valid if we're in session AND no position is currently open.
+// Same gate is used for both the visual position box and the strategy entry,
+// so a box only ever appears for a trade that actually got placed.
+validBullEntry = bullDispEvent and canTrade and strategy.position_size == 0
+validBearEntry = bearDispEvent and canTrade and strategy.position_size == 0
+
+drawLong  = showPositions and (useNextOpen ? validBullEntry[1] : validBullEntry)
+drawShort = showPositions and (useNextOpen ? validBearEntry[1] : validBearEntry)
 
 if drawLong
     entry = useNextOpen ? open : close
@@ -223,11 +228,11 @@ if drawShort
 // Strategy trades (entries fill on next bar's open by default)
 var float entryStopDist = na
 
-if runBacktest and canTrade and bullDispEvent
+if runBacktest and validBullEntry
     strategy.entry("Long", strategy.long)
     entryStopDist := stopDist
 
-if runBacktest and canTrade and bearDispEvent
+if runBacktest and validBearEntry
     strategy.entry("Short", strategy.short)
     entryStopDist := stopDist
 
