@@ -18,6 +18,11 @@ lineW      = input.int(2, "Line Width", minval=1, maxval=5, group="Style")
 showLabels = input.bool(true, "Show Labels", group="Style")
 showPivots = input.bool(true, "Show Swing Markers", group="Style")
 
+// ─── Zigzag ────────────────────────────────────────────────────
+showZigzag = input.bool(false, "Show Zigzag", group="Zigzag")
+zigzagCol  = input.color(color.yellow, "Zigzag Color", group="Zigzag")
+zigzagW    = input.int(1, "Zigzag Width", minval=1, maxval=5, group="Zigzag")
+
 // ─── Swing detection ───────────────────────────────────────────
 ph = ta.pivothigh(high, leftBars, rightBars)
 pl = ta.pivotlow(low,  leftBars, rightBars)
@@ -94,6 +99,54 @@ if bearBOS or bearCHoCH
         label.new(midBar, swingLow, txt,
              color=col, textcolor=color.white,
              style=label.style_label_up, size=size.small)
+
+// ─── Zigzag ────────────────────────────────────────────────────
+var int   zzLastBar    = na
+var float zzLastPrice  = na
+var bool  zzLastIsHigh = false
+var line  zzLastLine   = na
+
+if showZigzag and not na(ph)
+    phBar = bar_index - rightBars
+    phPx  = ph
+    if na(zzLastBar)
+        zzLastBar    := phBar
+        zzLastPrice  := phPx
+        zzLastIsHigh := true
+    else if zzLastIsHigh
+        if phPx > zzLastPrice
+            zzLastBar   := phBar
+            zzLastPrice := phPx
+            if not na(zzLastLine)
+                line.set_x2(zzLastLine, phBar)
+                line.set_y2(zzLastLine, phPx)
+    else
+        zzLastLine := line.new(zzLastBar, zzLastPrice, phBar, phPx,
+             color=zigzagCol, width=zigzagW)
+        zzLastBar    := phBar
+        zzLastPrice  := phPx
+        zzLastIsHigh := true
+
+if showZigzag and not na(pl)
+    plBar = bar_index - rightBars
+    plPx  = pl
+    if na(zzLastBar)
+        zzLastBar    := plBar
+        zzLastPrice  := plPx
+        zzLastIsHigh := false
+    else if not zzLastIsHigh
+        if plPx < zzLastPrice
+            zzLastBar   := plBar
+            zzLastPrice := plPx
+            if not na(zzLastLine)
+                line.set_x2(zzLastLine, plBar)
+                line.set_y2(zzLastLine, plPx)
+    else
+        zzLastLine := line.new(zzLastBar, zzLastPrice, plBar, plPx,
+             color=zigzagCol, width=zigzagW)
+        zzLastBar    := plBar
+        zzLastPrice  := plPx
+        zzLastIsHigh := false
 
 // ─── Alerts ────────────────────────────────────────────────────
 alertcondition(bullBOS,   "Bullish BOS",   "Bullish break of structure")
