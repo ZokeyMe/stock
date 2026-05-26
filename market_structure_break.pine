@@ -11,12 +11,13 @@ bullBOSCol   = input.color(color.lime,   "Bullish BOS",   group="Colors")
 bearBOSCol   = input.color(color.red,    "Bearish BOS",   group="Colors")
 bullCHoCHCol = input.color(color.aqua,   "Bullish CHoCH", group="Colors")
 bearCHoCHCol = input.color(color.orange, "Bearish CHoCH", group="Colors")
-pivotCol     = input.color(color.gray,   "Pivot Markers", group="Colors")
 
 // ─── Style ─────────────────────────────────────────────────────
-lineW      = input.int(2, "Line Width", minval=1, maxval=5, group="Style")
-showLabels = input.bool(true, "Show Labels", group="Style")
-showPivots = input.bool(true, "Show Swing Markers", group="Style")
+lineW         = input.int(2, "Line Width", minval=1, maxval=5, group="Style")
+showLabels    = input.bool(true, "Show Labels", group="Style")
+showPivots    = input.bool(true, "Show Swing Markers", group="Style")
+pivotHighCol  = input.color(color.green, "Pivot High Color", group="Style")
+pivotLowCol   = input.color(color.red,   "Pivot Low Color",  group="Style")
 
 // ─── Zigzag ────────────────────────────────────────────────────
 showZigzag = input.bool(false, "Show Zigzag", group="Zigzag")
@@ -28,9 +29,9 @@ ph = ta.pivothigh(high, leftBars, rightBars)
 pl = ta.pivotlow(low,  leftBars, rightBars)
 
 plotshape(showPivots ? ph : na, title="Pivot High", style=shape.triangledown,
-     location=location.abovebar, color=color.new(pivotCol, 50), size=size.tiny, offset=-rightBars)
+     location=location.abovebar, color=color.new(pivotHighCol, 50), size=size.tiny, offset=-rightBars)
 plotshape(showPivots ? pl : na, title="Pivot Low",  style=shape.triangleup,
-     location=location.belowbar, color=color.new(pivotCol, 50), size=size.tiny, offset=-rightBars)
+     location=location.belowbar, color=color.new(pivotLowCol, 50), size=size.tiny, offset=-rightBars)
 
 // ─── State ─────────────────────────────────────────────────────
 var float swingHigh      = na
