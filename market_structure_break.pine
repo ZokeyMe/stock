@@ -27,7 +27,6 @@ zigzagW    = input.int(1, "Zigzag Width", minval=1, maxval=5, group="Zigzag")
 // ─── Displacement Candle ───────────────────────────────────────
 dispEnabled   = input.bool(true,  "Tag BOS/CHoCH on Displacement",  group="Displacement")
 dispThreshold = input.float(20.0, "Counter-Wick Max %", minval=1.0, maxval=50.0, step=1.0, group="Displacement")
-showAllDisp   = input.bool(false, "Mark All Displacement Candles",  group="Displacement")
 dispMarkerCol = input.color(color.yellow, "Displacement Marker Color", group="Displacement")
 
 // ─── Swing detection ───────────────────────────────────────────
@@ -65,11 +64,6 @@ botWick   = close - low
 
 isBullDisp = close > open and totalUp   > 0 and (topWick / totalUp)   * 100 < dispThreshold
 isBearDisp = close < open and totalDown > 0 and (botWick / totalDown) * 100 < dispThreshold
-
-plotshape(showAllDisp and isBullDisp ? high : na, title="Bullish Displacement",
-     style=shape.diamond, location=location.abovebar, color=dispMarkerCol, size=size.tiny)
-plotshape(showAllDisp and isBearDisp ? low : na, title="Bearish Displacement",
-     style=shape.diamond, location=location.belowbar, color=dispMarkerCol, size=size.tiny)
 
 // ─── Break detection ───────────────────────────────────────────
 upPx = useClose ? close : high
@@ -124,6 +118,14 @@ if bearBOS or bearCHoCH
         label.new(midBar, swingLow, txt,
              color=col, textcolor=color.white,
              style=label.style_label_up, size=size.small)
+
+// Diamond markers only on BOS/CHoCH candles that qualify as displacement
+plotshape(dispEnabled and (bullBOS or bullCHoCH) and isBullDisp ? high : na,
+     title="Bullish Break Displacement",
+     style=shape.diamond, location=location.abovebar, color=dispMarkerCol, size=size.tiny)
+plotshape(dispEnabled and (bearBOS or bearCHoCH) and isBearDisp ? low : na,
+     title="Bearish Break Displacement",
+     style=shape.diamond, location=location.belowbar, color=dispMarkerCol, size=size.tiny)
 
 // ─── Zigzag ────────────────────────────────────────────────────
 var int   zzLastBar    = na
