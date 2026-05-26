@@ -1,6 +1,5 @@
 //@version=5
-indicator("Market Structure Break", shorttitle="MSB", overlay=true,
-     max_lines_count=500, max_labels_count=500, max_boxes_count=500)
+indicator("Market Structure Break", shorttitle="MSB", overlay=true, max_lines_count=500, max_labels_count=500)
 
 // ─── Detection ─────────────────────────────────────────────────
 leftBars   = input.int(3, "Pivot Left Bars",  minval=1)
@@ -12,22 +11,21 @@ bullBOSCol   = input.color(color.lime,   "Bullish BOS",   group="Colors")
 bearBOSCol   = input.color(color.red,    "Bearish BOS",   group="Colors")
 bullCHoCHCol = input.color(color.aqua,   "Bullish CHoCH", group="Colors")
 bearCHoCHCol = input.color(color.orange, "Bearish CHoCH", group="Colors")
+pivotCol     = input.color(color.gray,   "Pivot Markers", group="Colors")
 
 // ─── Style ─────────────────────────────────────────────────────
-lineW       = input.int(2, "Line Width", minval=1, maxval=5, group="Style")
-showLabels  = input.bool(true, "Show Labels", group="Style")
-showPivots  = input.bool(true, "Show Swing Markers", group="Style")
-showGaps    = input.bool(true, "Mark gaps that caused a break", group="Style")
-gapTransp   = input.int(80, "Gap Box Transparency", minval=0, maxval=100, group="Style")
+lineW      = input.int(2, "Line Width", minval=1, maxval=5, group="Style")
+showLabels = input.bool(true, "Show Labels", group="Style")
+showPivots = input.bool(true, "Show Swing Markers", group="Style")
 
 // ─── Swing detection ───────────────────────────────────────────
 ph = ta.pivothigh(high, leftBars, rightBars)
 pl = ta.pivotlow(low,  leftBars, rightBars)
 
 plotshape(showPivots ? ph : na, title="Pivot High", style=shape.triangledown,
-     location=location.abovebar, color=color.new(color.gray, 50), size=size.tiny, offset=-rightBars)
+     location=location.abovebar, color=color.new(pivotCol, 50), size=size.tiny, offset=-rightBars)
 plotshape(showPivots ? pl : na, title="Pivot Low",  style=shape.triangleup,
-     location=location.belowbar, color=color.new(color.gray, 50), size=size.tiny, offset=-rightBars)
+     location=location.belowbar, color=color.new(pivotCol, 50), size=size.tiny, offset=-rightBars)
 
 // ─── State ─────────────────────────────────────────────────────
 var float swingHigh      = na
@@ -74,13 +72,7 @@ if not na(swingLow) and dnPx < swingLow and not swingLowFired
     swingLowFired := true
     bias := -1
 
-// A "gap break" happens when the previous bar didn't reach the swing
-// AND the current bar's full range is on the wrong side of it —
-// i.e. price never actually traded at the broken level.
-bullGapBreak = (bullBOS or bullCHoCH) and high[1] < swingHigh and low > swingHigh
-bearGapBreak = (bearBOS or bearCHoCH) and low[1]  > swingLow  and high < swingLow
-
-// ─── Draw BOS/CHoCH lines + labels ─────────────────────────────
+// ─── Draw ──────────────────────────────────────────────────────
 if bullBOS or bullCHoCH
     col = bullCHoCH ? bullCHoCHCol : bullBOSCol
     txt = bullCHoCH ? "CHoCH" : "BOS"
@@ -103,52 +95,8 @@ if bearBOS or bearCHoCH
              color=col, textcolor=color.white,
              style=label.style_label_up, size=size.small)
 
-// ─── Gap boxes (extend right until filled) ─────────────────────
-var box[] gapBoxes = array.new_box()
-
-if bullGapBreak and showGaps
-    col   = bullCHoCH ? bullCHoCHCol : bullBOSCol
-    txt   = bullCHoCH ? "CHoCH" : "BOS"
-    bx = box.new(bar_index - 1, low, bar_index, high[1],
-         border_color=color.new(col, 30),
-         border_style=line.style_dashed,
-         bgcolor=color.new(col, gapTransp),
-         text="would be " + txt + " if filled",
-         text_color=color.new(color.white, 0),
-         text_size=size.tiny,
-         text_halign=text.align_center,
-         text_valign=text.align_center)
-    array.push(gapBoxes, bx)
-
-if bearGapBreak and showGaps
-    col = bearCHoCH ? bearCHoCHCol : bearBOSCol
-    txt = bearCHoCH ? "CHoCH" : "BOS"
-    bx = box.new(bar_index - 1, low[1], bar_index, high,
-         border_color=color.new(col, 30),
-         border_style=line.style_dashed,
-         bgcolor=color.new(col, gapTransp),
-         text="would be " + txt + " if filled",
-         text_color=color.new(color.white, 0),
-         text_size=size.tiny,
-         text_halign=text.align_center,
-         text_valign=text.align_center)
-    array.push(gapBoxes, bx)
-
-// Extend each gap box right until price re-enters its range
-if array.size(gapBoxes) > 0
-    for i = array.size(gapBoxes) - 1 to 0
-        bx       = array.get(gapBoxes, i)
-        bxTop    = box.get_top(bx)
-        bxBot    = box.get_bottom(bx)
-        bxRight  = box.get_right(bx)
-        entered  = high >= bxBot and low <= bxTop
-        if not entered and bar_index - 1 == bxRight
-            box.set_right(bx, bar_index)
-
 // ─── Alerts ────────────────────────────────────────────────────
 alertcondition(bullBOS,   "Bullish BOS",   "Bullish break of structure")
 alertcondition(bearBOS,   "Bearish BOS",   "Bearish break of structure")
 alertcondition(bullCHoCH, "Bullish CHoCH", "Change of character: trend turning bullish")
 alertcondition(bearCHoCH, "Bearish CHoCH", "Change of character: trend turning bearish")
-alertcondition(bullGapBreak, "Bullish gap break", "BOS/CHoCH triggered by a gap — pending price fill")
-alertcondition(bearGapBreak, "Bearish gap break", "BOS/CHoCH triggered by a gap — pending price fill")
